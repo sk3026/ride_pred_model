@@ -1,3 +1,16 @@
+# Virtual environment
+venv/
 __pycache__/
+
+# Python cache
 *.pyc
-.env
+
+# Model files (optional)
+*.pkl
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data files (optional)
+data/raw/
+data/processed/
