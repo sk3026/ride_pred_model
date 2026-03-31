@@ -167,23 +167,53 @@ st.markdown("""
 
 
 # ─────────────────────────────────────────────
+#  URL CONFIG  –  remote tried first, local fallback
+# ─────────────────────────────────────────────
+REMOTE_URL = "https://ride-pred-model.onrender.com"
+LOCAL_URL  = "http://127.0.0.1:5000"
+
+
+@st.cache_data(show_spinner=False)
+def resolve_base_url() -> tuple[str, str]:
+    """
+    Ping REMOTE first; use it if reachable.
+    Fall back to LOCAL if remote is down.
+    Returns (base_url, label).
+    """
+    for url, label in [(REMOTE_URL, "remote"), (LOCAL_URL, "local")]:
+        try:
+            requests.get(f"{url}/", timeout=3)
+            return url, label
+        except Exception:
+            continue
+    return LOCAL_URL, "unreachable"
+
+
+# ─────────────────────────────────────────────
 #  LOAD LOCATIONS
 # ─────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
-def load_locations():
+def load_locations(base_url: str) -> list:
     try:
-        res = requests.get("http://127.0.0.1:5000/locations", timeout=5)
+        res = requests.get(f"{base_url}/locations", timeout=5)
         res.raise_for_status()
         return res.json()
     except Exception:
         return []
 
+
 with st.spinner("Connecting to data layer…"):
-    locations = load_locations()
+    BASE_URL, _api_src = resolve_base_url()
+    locations = load_locations(BASE_URL)
 
 if not locations:
-    st.error("**Backend unreachable.** Ensure the Flask server is running on port 5000.")
+    st.error(
+        "**Backend unreachable.**  "
+        f"Tried `{REMOTE_URL}` (remote) and `{LOCAL_URL}` (local) — neither responded."
+    )
     st.stop()
+
+_backend_label = "☁️ Remote API" if _api_src == "remote" else "🖥️ Local API"
 
 
 # ─────────────────────────────────────────────
@@ -208,7 +238,6 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    # day is stored as its full name string — matches what the backend now accepts
     day = st.selectbox("Day of Week", DAYS)
 
     zone_list = [loc["location_id"] for loc in locations]
@@ -223,8 +252,8 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        "<p style='font-size:10px;color:#3d5068;text-align:center;'>"
-        "RidePulse v2.0 · ML-Powered</p>",
+        f"<p style='font-size:10px;color:#3d5068;text-align:center;'>"
+        f"RidePulse v2.0 · ML-Powered<br>{_backend_label}</p>",
         unsafe_allow_html=True,
     )
 
@@ -234,20 +263,25 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 def get_prediction(hour: int, day: str, location_id: int) -> dict | None:
     """
-    POST /predict  →  { hour: int, day: str, location_id: int }
-    The backend accepts day as a day-name string ("Monday", etc.)
+    POST /predict with automatic failover:
+    tries BASE_URL first, then the other URL if that fails.
     """
-    try:
-        res = requests.post(
-            "http://127.0.0.1:5000/predict",
-            json={"hour": hour, "day": day, "location_id": location_id},
-            timeout=10,
-        )
-        res.raise_for_status()
-        return res.json()
-    except Exception as e:
-        st.error(f"Prediction request failed: {e}")
-        return None
+    other_url = LOCAL_URL if BASE_URL == REMOTE_URL else REMOTE_URL
+
+    for url in (BASE_URL, other_url):
+        try:
+            res = requests.post(
+                f"{url}/predict",
+                json={"hour": hour, "day": day, "location_id": location_id},
+                timeout=10,
+            )
+            res.raise_for_status()
+            return res.json()
+        except Exception:
+            continue
+
+    st.error("Prediction failed — both remote and local endpoints are unreachable.")
+    return None
 
 
 # ─────────────────────────────────────────────
@@ -271,18 +305,18 @@ with left_col:
     if result and "error" not in result:
         m1, m2 = st.columns(2)
         with m1:
-            st.metric("Zone", result["location"])          # already "Zone X" string
+            st.metric("Zone", result["location"])
         with m2:
             st.metric("Predicted Demand", round(result["predicted_demand"], 2))
 
         level = result["demand_level"]
         st.markdown("<br>", unsafe_allow_html=True)
         if level == "High":
-            st.error("🔥 HIGH DEMAND ")
+            st.error("🔥 HIGH DEMAND — Deploy additional fleet")
         elif level == "Moderate":
-            st.warning("⚠️ MODERATE DEMAND ")
+            st.warning("⚠️ MODERATE DEMAND — Monitor closely")
         else:
-            st.success("✅ LOW DEMAND ")
+            st.success("✅ LOW DEMAND — Standard coverage")
 
         st.markdown(
             f"""
@@ -310,6 +344,11 @@ with left_col:
                         <td style="color:var(--text-muted);padding:4px 0;
                                    font-family:var(--mono);font-size:11px;">ZONE ID</td>
                         <td style="text-align:right;font-weight:500;">{result['location']}</td>
+                    </tr>
+                    <tr>
+                        <td style="color:var(--text-muted);padding:4px 0;
+                                   font-family:var(--mono);font-size:11px;">API</td>
+                        <td style="text-align:right;font-weight:500;">{_backend_label}</td>
                     </tr>
                 </table>
             </div>
@@ -359,7 +398,7 @@ with right_col:
 #  FOOTER
 # ─────────────────────────────────────────────
 st.markdown(
-    "<div class='dashboard-footer'>RidePulse · Demand Intelligence · "
-    "Powered by Streamlit &amp; Flask</div>",
+    f"<div class='dashboard-footer'>RidePulse · Demand Intelligence · "
+    f"Powered by Streamlit &amp; Flask · {_backend_label}</div>",
     unsafe_allow_html=True,
 )
