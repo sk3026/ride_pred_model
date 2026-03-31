@@ -6,17 +6,13 @@ from model_pipeline import predict_demand
 app = Flask(__name__)
 
 # ---------------- LOAD DATA ----------------
-try:
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+zone_path = os.path.join(BASE_DIR, "data", "processed", "zone_centers.csv")
 
-    loc_path = os.path.join(BASE_DIR, "data", "processed", "locations.csv")
-    location_df = pd.read_csv(loc_path)
+zone_df = pd.read_csv(zone_path)
+zone_df.columns = zone_df.columns.str.strip().str.lower()
 
-    print("📍 Locations loaded:", len(location_df))
-
-except Exception as e:
-    print("❌ Error loading locations:", e)
-    location_df = None
+print("📍 Zones loaded:", len(zone_df))
 
 
 # ---------------- DEMAND LEVEL ----------------
@@ -37,11 +33,20 @@ def home():
 
 @app.route("/locations")
 def get_locations():
-    if location_df is not None:
-        return jsonify(location_df.to_dict(orient="records"))
-    return jsonify([])
+    data = []
+
+    for _, row in zone_df.iterrows():
+        data.append({
+            "location_id": int(row["zone"]),
+            "location_name": f"Zone {int(row['zone'])}",
+            "latitude": float(row["lat"]),
+            "longitude": float(row["lon"])
+        })
+
+    return jsonify(data)
 
 
+# ---------------- PREDICT ----------------
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -49,29 +54,30 @@ def predict():
 
         hour = data.get("hour")
         day = data.get("day")
-        location_id = data.get("location_id")
+        zone_id = int(data.get("location_id"))
 
-        # 🔮 Prediction (currently no location feature in model)
-        prediction = predict_demand(hour, day)
-
-        level = get_demand_level(prediction)
-
-        # 📍 Get location info
-        loc = location_df[location_df['location_id'] == location_id]
+        # ---------------- GET LAT/LON ----------------
+        loc = zone_df[zone_df['zone'] == zone_id]
 
         if not loc.empty:
             row = loc.iloc[0]
-            location_name = row["location_name"]
-            lat = float(row["latitude"])
-            lon = float(row["longitude"])
+            lat = float(row["lat"])
+            lon = float(row["lon"])
+            name = f"Zone {zone_id}"
         else:
-            location_name = "Unknown"
             lat, lon = 20.0, 78.0
+            name = "Unknown"
+
+        # ---------------- ✅ FIXED ML CALL ----------------
+        prediction = predict_demand(hour, day, lat, lon)
+
+        # ---------------- DEMAND LEVEL ----------------
+        level = get_demand_level(prediction)
 
         return jsonify({
             "predicted_demand": float(prediction),
             "demand_level": level,
-            "location": location_name,
+            "location": name,
             "lat": lat,
             "lon": lon
         })
