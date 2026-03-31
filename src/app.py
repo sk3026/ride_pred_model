@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 import os
-from model_pipeline import predict_demand
 
+# 🔥 TEMP: comment model import for deployment stability
+# from model_pipeline import predict_demand
 
 app = Flask(__name__)
 
@@ -10,17 +11,38 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 zone_path = os.path.join(BASE_DIR, "data", "processed", "zone_centers.csv")
 
-zone_df = pd.read_csv(zone_path)
-zone_df.columns = zone_df.columns.str.strip().str.lower()
+zone_df = None
 
-print("📍 Zones loaded:", len(zone_df))
+def load_zones():
+    try:
+        print("📂 Loading zones from:", zone_path)
+        df = pd.read_csv(zone_path)
+        df.columns = df.columns.str.strip().str.lower()
+        print("✅ Zones loaded:", len(df))
+        return df
+    except Exception as e:
+        print("❌ CSV load failed:", e)
+
+        # 🔥 fallback data (prevents crash)
+        print("⚠️ Using fallback sample data")
+        return pd.DataFrame({
+            "zone": [1, 2, 3],
+            "lat": [28.6, 28.7, 28.8],
+            "lon": [77.2, 77.3, 77.4]
+        })
+
+def get_zone_df():
+    global zone_df
+    if zone_df is None:
+        zone_df = load_zones()
+    return zone_df
 
 
 # ---------------- DEMAND LEVEL ----------------
 def get_demand_level(value):
-    if value < 50:
+    if value < 40:
         return "Low"
-    elif value < 150:
+    elif value < 45:
         return "Moderate"
     else:
         return "High"
@@ -29,11 +51,12 @@ def get_demand_level(value):
 # ---------------- ROUTES ----------------
 @app.route("/")
 def home():
-    return "API Running"
+    return "API Running 🚀"
 
 
 @app.route("/locations")
 def get_locations():
+    zone_df = get_zone_df()
     data = []
 
     for _, row in zone_df.iterrows():
@@ -53,9 +76,11 @@ def predict():
     try:
         data = request.get_json()
 
-        hour = data.get("hour")
-        day = data.get("day")
-        zone_id = int(data.get("location_id"))
+        hour = int(data.get("hour", 0))
+        day = int(data.get("day", 0))
+        zone_id = int(data.get("location_id", 1))
+
+        zone_df = get_zone_df()
 
         # ---------------- GET LAT/LON ----------------
         loc = zone_df[zone_df['zone'] == zone_id]
@@ -69,8 +94,11 @@ def predict():
             lat, lon = 20.0, 78.0
             name = "Unknown"
 
-        # ---------------- ✅ FIXED ML CALL ----------------
-        prediction = predict_demand(hour, day, lat, lon)
+        # 🔥 TEMP DUMMY PREDICTION (fast + safe)
+        prediction = 100 + (hour * 5) + (day * 3)
+
+        # 🔥 When stable, replace with:
+        # prediction = predict_demand(hour, day, lat, lon)
 
         # ---------------- DEMAND LEVEL ----------------
         level = get_demand_level(prediction)
@@ -89,4 +117,5 @@ def predict():
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
