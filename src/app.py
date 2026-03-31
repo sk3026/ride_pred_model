@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from model_pipeline import predict_demand
 
+
 app = Flask(__name__)
 
 # ---------------- LOAD DATA ----------------
