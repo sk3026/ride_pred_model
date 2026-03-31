@@ -6,5 +6,5 @@ joblib
 streamlit
 requests
 folium
-stremlit-folium
+streamlit-folium
 xgboost
