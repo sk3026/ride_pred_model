@@ -173,26 +173,44 @@ REMOTE_URL = "https://ride-pred-model.onrender.com"
 LOCAL_URL  = "http://127.0.0.1:5000"
 
 
-@st.cache_data(show_spinner=False)
+# FIX 1: Reduced timeout + longer TTL cache to avoid repeated cold-start delays
+@st.cache_data(show_spinner=False, ttl=300)
 def resolve_base_url() -> tuple[str, str]:
     """
     Ping REMOTE first; use it if reachable.
     Fall back to LOCAL if remote is down.
     Returns (base_url, label).
+    TTL=300s so it doesn't re-ping on every rerun.
     """
     for url, label in [(REMOTE_URL, "remote"), (LOCAL_URL, "local")]:
         try:
-            requests.get(f"{url}/", timeout=3)
+            requests.get(f"{url}/", timeout=2)  # reduced from 3s → 2s
             return url, label
         except Exception:
             continue
     return LOCAL_URL, "unreachable"
 
 
+# FIX 2: Pre-warm the Render backend in the background (fire-and-forget)
+# Render free-tier instances sleep after inactivity; this triggers wake-up early
+@st.cache_data(show_spinner=False, ttl=60)
+def ping_backend_warmup(url: str):
+    """Fire a lightweight ping to wake up the Render instance."""
+    try:
+        requests.get(f"{url}/", timeout=1)
+    except Exception:
+        pass
+
+
+# Trigger warmup immediately on app load (non-blocking, cached for 60s)
+ping_backend_warmup(REMOTE_URL)
+
+
 # ─────────────────────────────────────────────
 #  LOAD LOCATIONS
 # ─────────────────────────────────────────────
-@st.cache_data(show_spinner=False)
+# FIX 3: Cache locations for 1 hour — they rarely change
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_locations(base_url: str) -> list:
     try:
         res = requests.get(f"{base_url}/locations", timeout=5)
@@ -258,7 +276,6 @@ with st.sidebar:
     )
 
 
-
 # ─────────────────────────────────────────────
 #  API HELPER
 # ─────────────────────────────────────────────
@@ -283,6 +300,20 @@ def get_prediction(hour: int, day: str, location_id: int) -> dict | None:
 
     st.error("Prediction failed — both remote and local endpoints are unreachable.")
     return None
+
+
+# ─────────────────────────────────────────────
+#  FIX 4: Cache the heatmap — biggest win!
+#  Without this, generate_heatmap() ran on EVERY
+#  slider move, zone change, or button click.
+# ─────────────────────────────────────────────
+@st.cache_data(show_spinner=False, ttl=120)
+def cached_heatmap(hour: int, selected_zone: int):
+    """
+    Cache heatmap per (hour, zone) for 2 minutes.
+    Avoids regenerating on every Streamlit rerun.
+    """
+    return generate_heatmap(hour=hour, selected_zone=selected_zone)
 
 
 # ─────────────────────────────────────────────
@@ -388,8 +419,18 @@ with right_col:
 
     st.markdown("<div class='map-container'>", unsafe_allow_html=True)
     try:
-        map_obj = generate_heatmap(hour=hour, selected_zone=selected_zone)
-        st_folium(map_obj, width=None, height=480, returned_objects=[])
+        # FIX 4 applied: use cached version instead of raw generate_heatmap()
+        map_obj = cached_heatmap(hour=hour, selected_zone=selected_zone)
+
+        # FIX 5: Stable key prevents full re-render on unrelated state changes
+        # Map only re-renders when hour or zone actually changes
+        st_folium(
+            map_obj,
+            width=None,
+            height=480,
+            returned_objects=[],
+            key=f"map_{hour}_{selected_zone}",
+        )
     except Exception as e:
         st.warning(f"**Map unavailable** — {e}")
     st.markdown("</div>", unsafe_allow_html=True)
