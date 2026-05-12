@@ -21,19 +21,22 @@ kmeans = joblib.load(kmeans_path)
 def predict_demand(hour, day, lat, lon):
 
     zone = kmeans.predict(
-        pd.DataFrame([[lat, lon]], columns=['lat','lon'])
+        pd.DataFrame([[lat, lon]], columns=['lat', 'lon'])
     )[0]
 
     df = pd.DataFrame([{
         "hour": hour,
-        "day": day,
-        "zone": zone
+        "is_weekend": 1 if day in ['Saturday', 'Sunday'] else 0,
+        "is_peak": 1 if hour in [8, 9, 17, 18, 19] else 0,
     }])
 
-    df['is_weekend'] = df['day'].isin(['Saturday','Sunday']).astype(int)
-    df['is_peak'] = df['hour'].isin([8,9,17,18,19]).astype(int)
+    # ✅ FIX: manually encode day and zone instead of pd.get_dummies
+    for col in columns:
+        if col.startswith("day_"):
+            df[col] = 1 if col == f"day_{day}" else 0
+        if col.startswith("zone_"):
+            df[col] = 1 if col == f"zone_{zone}" else 0
 
-    df = pd.get_dummies(df)
     df = df.reindex(columns=columns, fill_value=0)
 
     pred_log = model.predict(df)[0]
