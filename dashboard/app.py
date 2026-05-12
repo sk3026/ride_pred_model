@@ -4,8 +4,8 @@ from streamlit_folium import st_folium
 import sys
 import os
 
-# FIX IMPORT PATH
-sys.path.append(os.path.abspath("../src"))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 from spatial_pipeline import generate_heatmap
 
 # ─────────────────────────────────────────────
