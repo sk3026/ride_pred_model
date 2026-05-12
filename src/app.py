@@ -1,28 +1,35 @@
-from flask import Flask, request, jsonify
-import pandas as pd
+import sys
 import os
 
-# Import model prediction function
+# Ensure src/ is on the path so model_pipeline can be imported
+# regardless of how gunicorn launches the app
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from flask import Flask, request, jsonify
+import pandas as pd
+
 from model_pipeline import predict_demand
 
 app = Flask(__name__)
 
-# ---------------- LOAD DATA ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# ---------------- LOAD ZONE DATA ----------------
+BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 zone_path = os.path.join(BASE_DIR, "data", "processed", "zone_centers.csv")
 
 zone_df = None
 
-# Map day name → integer (matches frontend's selectbox order)
-DAY_NAME_TO_INT = {
-    "Monday": 0,
-    "Tuesday": 1,
-    "Wednesday": 2,
-    "Thursday": 3,
-    "Friday": 4,
-    "Saturday": 5,
-    "Sunday": 6,
+# Day name → integer mapping (used to accept int OR string from frontend)
+DAY_INT_TO_NAME = {
+    0: "Monday",
+    1: "Tuesday",
+    2: "Wednesday",
+    3: "Thursday",
+    4: "Friday",
+    5: "Saturday",
+    6: "Sunday",
 }
+
+DAY_NAME_TO_INT = {v: k for k, v in DAY_INT_TO_NAME.items()}
 
 
 def load_zones():
@@ -50,13 +57,10 @@ def get_zone_df():
 
 
 # ---------------- DEMAND LEVEL ----------------
-# Thresholds tuned to the dummy formula:
-#   prediction = 100 + (hour * 5) + (day_int * 3)
-#   range ≈ 100 – 100 + (23*5) + (6*3) = 100 – 233
 def get_demand_level(value: float) -> str:
-    if value < 140:
+    if value < 10:
         return "Low"
-    elif value < 180:
+    elif value < 25:
         return "Moderate"
     else:
         return "High"
@@ -92,17 +96,20 @@ def predict():
         hour    = int(data.get("hour", 0))
         zone_id = int(data.get("location_id", 1))
 
-        # ── Day: accept both string ("Monday") and integer (0) ──
+        # Accept day as string ("Monday") or integer (0) from frontend
         raw_day = data.get("day", 0)
         if isinstance(raw_day, str):
-            day_int = DAY_NAME_TO_INT.get(raw_day.strip().capitalize(), 0)
+            day_name = raw_day.strip().capitalize()
+            # Validate
+            if day_name not in DAY_NAME_TO_INT:
+                return jsonify({"error": f"Invalid day name: '{day_name}'"}), 400
         else:
-            day_int = int(raw_day)
+            day_name = DAY_INT_TO_NAME.get(int(raw_day), "Monday")
 
-        df = get_zone_df()
-
-        # ── Zone lookup ──
+        # Zone lookup
+        df  = get_zone_df()
         loc = df[df["zone"] == zone_id]
+
         if not loc.empty:
             row  = loc.iloc[0]
             lat  = float(row["lat"])
@@ -112,14 +119,13 @@ def predict():
             lat, lon = 20.0, 78.0
             name = "Unknown"
 
-        # ── Dummy prediction (replace with real model when ready) ──
-        prediction = 100 + (hour * 5) + (day_int * 3)
-        # prediction = predict_demand(hour, day_int, lat, lon)
+        # Real model prediction (day passed as string name)
+        prediction = predict_demand(hour, day_name, lat, lon)
 
         level = get_demand_level(prediction)
 
         return jsonify({
-            "predicted_demand": float(prediction),
+            "predicted_demand": round(prediction, 2),
             "demand_level":     level,
             "location":         name,
             "lat":              lat,
