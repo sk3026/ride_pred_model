@@ -20,9 +20,9 @@ kmeans = joblib.load(kmeans_path)
 
 def predict_demand(hour, day, lat, lon):
 
-    zone = kmeans.predict(
+    zone = str(kmeans.predict(
         pd.DataFrame([[lat, lon]], columns=['lat', 'lon'])
-    )[0]
+    )[0])
 
     df = pd.DataFrame([{
         "hour": hour,
@@ -30,7 +30,7 @@ def predict_demand(hour, day, lat, lon):
         "is_peak": 1 if hour in [8, 9, 17, 18, 19] else 0,
     }])
 
-    # ✅ FIX: manually encode day and zone instead of pd.get_dummies
+
     for col in columns:
         if col.startswith("day_"):
             df[col] = 1 if col == f"day_{day}" else 0

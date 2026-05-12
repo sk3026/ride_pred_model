@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import os
 
-# 🔥 TEMP: comment model import for deployment stability
-# from model_pipeline import predict_demand
+# Import model prediction function
+from model_pipeline import predict_demand
 
 app = Flask(__name__)
 
