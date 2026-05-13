@@ -1,14 +1,16 @@
 flask==3.0.3
 pandas==2.2.2
 numpy==1.26.4
+scipy==1.13.1
+
 scikit-learn==1.4.2
 joblib==1.4.2
+
+xgboost==2.0.3
 
 streamlit==1.32.0
 streamlit-folium==0.20.0
 folium==0.16.0
-
-xgboost==2.0.3
 altair==5.2.0
 
 requests==2.31.0
