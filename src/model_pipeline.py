@@ -3,42 +3,100 @@ import numpy as np
 import joblib
 import os
 
-# ---------------- CORRECT BASE PATH ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# ---------------- BASE PATH ----------------
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
-model_path = os.path.join(BASE_DIR, "models", "demand_model.pkl")
-columns_path = os.path.join(BASE_DIR, "models", "model_columns.pkl")
-kmeans_path = os.path.join(BASE_DIR, "models", "kmeans.pkl")
+model_path = os.path.join(
+    BASE_DIR,
+    "models",
+    "demand_model.pkl"
+)
 
-print("📦 Loading model from:", model_path)
+columns_path = os.path.join(
+    BASE_DIR,
+    "models",
+    "model_columns.pkl"
+)
 
-# ---------------- LOAD ----------------
+kmeans_path = os.path.join(
+    BASE_DIR,
+    "models",
+    "kmeans.pkl"
+)
+
+print(" Loading model from:", model_path)
+
+# ---------------- LOAD MODELS ----------------
 model = joblib.load(model_path)
+
 columns = joblib.load(columns_path)
+
 kmeans = joblib.load(kmeans_path)
 
-
-def predict_demand(hour, day, lat, lon):
-
-    zone = kmeans.predict(
-        pd.DataFrame([[lat, lon]], columns=['lat', 'lon'])
-    )[0]
-
-    df = pd.DataFrame([{
-        "hour": hour,
-        "is_weekend": 1 if day in ['Saturday', 'Sunday'] else 0,
-        "is_peak": 1 if hour in [8, 9, 17, 18, 19] else 0,
-    }])
+print(" Model loaded successfully")
 
 
-    for col in columns:
-        if col.startswith("day_"):
-            df[col] = 1 if col == f"day_{day}" else 0
-        if col.startswith("zone_"):
-            df[col] = 1 if col == f"zone_{zone}" else 0
+# ---------------- PREDICTION FUNCTION ----------------
+def predict_demand(zone, hour=10, day="Monday"):
 
-    df = df.reindex(columns=columns, fill_value=0)
+    # Validate zone
+    max_zone = len(kmeans.cluster_centers_) - 1
 
-    pred_log = model.predict(df)[0]
+    if zone < 0 or zone > max_zone:
+        raise ValueError(
+            f"Zone must be between 0 and {max_zone}"
+        )
 
-    return float(np.expm1(pred_log))
+    # ---------------- CREATE INPUT ----------------
+    input_df = pd.DataFrame(
+        0,
+        index=[0],
+        columns=columns
+    )
+
+    # Basic features
+    input_df.loc[0, 'hour'] = hour
+
+    input_df.loc[0, 'is_weekend'] = int(
+        day in ['Saturday', 'Sunday']
+    )
+
+    input_df.loc[0, 'is_peak'] = int(
+        hour in [8, 9, 17, 18, 19]
+    )
+
+    # ---------------- DAY ENCODING ----------------
+    day_col = f"day_{day}"
+
+    if day_col in input_df.columns:
+        input_df.loc[0, day_col] = 1
+
+    # ---------------- ZONE ENCODING ----------------
+    zone_col = f"zone_{zone}"
+
+    if zone_col in input_df.columns:
+        input_df.loc[0, zone_col] = 1
+
+    # ---------------- PREDICT ----------------
+    pred_log = model.predict(input_df)[0]
+
+    prediction = np.expm1(pred_log)
+
+    return round(float(prediction), 2)
+
+
+# ---------------- TEST ----------------
+if __name__ == "__main__":
+
+    print("\n Sample Predictions:\n")
+
+    print("Zone 1  →",
+          predict_demand(1, 10, "Monday"))
+
+    print("Zone 5  →",
+          predict_demand(5, 18, "Friday"))
+
+    print("Zone 10 →",
+          predict_demand(10, 9, "Saturday"))
