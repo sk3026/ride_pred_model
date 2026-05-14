@@ -159,7 +159,8 @@ def train_model(data_path):
         (1, 15, "Tuesday"),
         (5, 10, "Monday"),
         (10, 10, "Monday"),
-        (15, 10, "Monday")
+        (15, 10, "Monday"),
+        (6, 13, "Monday")
     ]
 
     for zone, hour, day in sample_tests:
