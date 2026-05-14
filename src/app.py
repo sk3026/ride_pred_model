@@ -3,7 +3,7 @@ import os
 from flask import Flask, request, jsonify
 import pandas as pd
 
-from src.model_pipeline import predict_demand
+from model_pipeline import predict_demand
 
 app = Flask(__name__)
 
