@@ -173,7 +173,7 @@ REMOTE_URL = "https://ridepulsev2.onrender.com"
 LOCAL_URL  = "http://127.0.0.1:5000"
 
 
-# FIX 1: Reduced timeout + longer TTL cache to avoid repeated cold-start delays
+
 @st.cache_data(show_spinner=False, ttl=300)
 def resolve_base_url() -> tuple[str, str]:
     """
@@ -191,8 +191,7 @@ def resolve_base_url() -> tuple[str, str]:
     return LOCAL_URL, "unreachable"
 
 
-# FIX 2: Pre-warm the Render backend in the background (fire-and-forget)
-# Render free-tier instances sleep after inactivity; this triggers wake-up early
+
 @st.cache_data(show_spinner=False, ttl=60)
 def ping_backend_warmup(url: str):
     """Fire a lightweight ping to wake up the Render instance."""
@@ -202,7 +201,6 @@ def ping_backend_warmup(url: str):
         pass
 
 
-# Trigger warmup immediately on app load (non-blocking, cached for 60s)
 ping_backend_warmup(REMOTE_URL)
 
 
@@ -302,10 +300,7 @@ def get_prediction(hour: int, day: str, location_id: int) -> dict | None:
     return None
 
 
-# ─────────────────────────────────────────────
-#  FIX 4: Cache the heatmap — biggest win!
-#  Without this, generate_heatmap() ran on EVERY
-#  slider move, zone change, or button click.
+
 # ─────────────────────────────────────────────
 @st.cache_data(show_spinner=False, ttl=120)
 def cached_heatmap(hour: int, selected_zone: int):
@@ -419,11 +414,10 @@ with right_col:
 
     st.markdown("<div class='map-container'>", unsafe_allow_html=True)
     try:
-        # FIX 4 applied: use cached version instead of raw generate_heatmap()
+        
         map_obj = cached_heatmap(hour=hour, selected_zone=selected_zone)
 
-        # FIX 5: Stable key prevents full re-render on unrelated state changes
-        # Map only re-renders when hour or zone actually changes
+       
         st_folium(
             map_obj,
             width=None,

@@ -64,7 +64,7 @@ print(f" Removed rows outside Bangalore: {before - after}")
 print(f" Remaining Bangalore rows: {after}")
 
 # ---------------- ASSIGN ZONES ----------------
-print("📍 Assigning zones...")
+print("Assigning zones...")
 
 df['zone'] = kmeans.predict(
     df[['lat', 'lon']]
