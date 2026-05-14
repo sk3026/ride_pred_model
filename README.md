@@ -1,54 +1,38 @@
 # RidePulse — Ride Demand Prediction System
 
-RidePulse is a machine learning-based ride demand prediction system that forecasts ride demand across different city zones using temporal and geospatial features. The project includes data preprocessing, spatial clustering, demand forecasting, REST API integration, and an interactive dashboard for visualization and analysis.
+RidePulse is a machine learning-based ride demand prediction system that forecasts ride demand across different city zones using temporal and geospatial features. The project includes data preprocessing, spatial clustering, demand forecasting, a REST API, and an interactive dashboard for visualization.
 
 ---
 
-##
+## Live Deployments
 
-Streamlit Dashboard:  
-https://ridepulsev1.streamlit.app/
-
-Flask API:  
-https://ridepulsev2.onrender.com/
+| Service | URL |
+|---|---|
+| Streamlit Dashboard | https://ridepulsev1.streamlit.app/ |
+| Flask API | https://ridepulsev2.onrender.com/ |
 
 ---
 
 ## Features
 
-- Real-time ride demand prediction
-- Zone-wise demand analysis
+- Real-time ride demand prediction by zone, hour, and day
+- Zone-wise demand analysis and classification
 - Spatial clustering using KMeans
 - Interactive heatmap visualization
-- REST API for inference
+- REST API for model inference
 - Streamlit dashboard integration
-- Demand classification based on prediction thresholds
+- Demand level classification — Low / Moderate / High
 
 ---
 
 ## Tech Stack
 
-### Machine Learning
-- Python
-- XGBoost
-- scikit-learn
-- KMeans Clustering
-- Pandas
-- NumPy
-
-### Backend
-- Flask
-- REST API
-
-### Frontend & Visualization
-- Streamlit
-- Folium
-- Streamlit-Folium
-- Altair
-
-### Deployment
-- Render
-- Streamlit Cloud
+| Layer | Tools |
+|---|---|
+| Machine Learning | XGBoost, scikit-learn, KMeans, Pandas, NumPy |
+| Backend | Flask, REST API |
+| Frontend | Streamlit, Folium, Streamlit-Folium, Altair |
+| Deployment | Render, Streamlit Cloud |
 
 ---
 
@@ -58,36 +42,82 @@ The project uses the publicly available Bangalore Uber ride dataset from Kaggle:
 
 https://www.kaggle.com/datasets/roysouvik98/uber-ride-details-bangalore
 
-The original dataset primarily contains ride-booking and temporal information. Since the dataset did not include latitude and longitude coordinates, geospatial coordinates were additionally generated during preprocessing to enable:
-
-- spatial clustering
-- zone creation
-- heatmap visualization
-- geospatial demand analysis
+The original dataset contains ride-booking and temporal information. Since it did not include latitude and longitude coordinates, geospatial coordinates were generated during preprocessing to enable spatial clustering, zone creation, heatmap visualization, and geospatial demand analysis.
 
 ---
-PROJECT STRUCTURE:
 
+## Project Structure
+
+```
 RIDE_MODEL/
 │
 ├── dashboard/
+│   ├── app.py
+│   └── requirements.txt
+│
 ├── data/
+│   ├── processed/
+│   │   ├── locations.csv
+│   │   └── zone_centers.csv
+│   └── raw/
+│       └── uber_rides_with_coords.csv
+│
 ├── models/
+│   ├── demand_model.pkl
+│   ├── kmeans.pkl
+│   └── model_columns.pkl
+│
 ├── notebooks/
+│   └── RidePulse.ipynb
+│
 ├── src/
+│   ├── app.py
+│   ├── model_pipeline.py
+│   ├── spatial_pipeline.py
+│   ├── train_pipeline.py
+│   └── generate_zone_data.py
+│
 ├── requirements.txt
+├── render.yaml
 └── README.md
-
+```
 
 ## Project Workflow
 
-1. Data preprocessing and cleaning  
-2. Spatial clustering using KMeans  
-3. Feature engineering  
-4. Demand forecasting using XGBoost  
-5. Flask API development  
-6. Streamlit dashboard integration  
-7. Deployment and real-time inference 
+1. Data preprocessing and cleaning
+2. Geographic filtering — Bangalore coordinates only
+3. Spatial clustering using KMeans (20 zones)
+4. Feature engineering
+5. Demand forecasting using XGBoost
+6. Flask API development and deployment
+7. Streamlit dashboard integration
+8. Real-time inference
+
+---
+
+## Feature Engineering
+
+| Feature | Description |
+|---|---|
+| `hour` | Hour of day (0–23) |
+| `day` | Day of week |
+| `is_weekend` | 1 if Saturday or Sunday |
+| `is_peak` | 1 if hour is 8, 9, 17, 18, or 19 |
+| `zone_N` | One-hot encoded zone ID |
+
+**Target transformation:**
+
+```
+y = log(1 + demand)
+```
+
+**Inverse transformation during inference:**
+
+```
+predicted_demand = exp(prediction) - 1
+```
+
+---
 
 ## Model Performance
 
@@ -96,35 +126,33 @@ RIDE_MODEL/
 | R² Score | 0.946 |
 | MAE | 5.85 |
 
-
-
- 
-
 ---
 
-## Feature Engineering
+## API Usage
 
-Features used for prediction:
+**Predict demand:**
 
-- Hour of day
-- Day of week
-- Weekend indicator
-- Peak-hour indicator
-- Zone encoding
+```bash
+curl -X POST https://ridepulsev2.onrender.com/predict \
+  -H "Content-Type: application/json" \
+  -d '{"hour": 10, "day": "Monday", "location_id": 5}'
+```
 
-Target transformation:
+**Response:**
 
-y = log(1 + demand)
+```json
+{
+  "predicted_demand": 51.54,
+  "demand_level": "High",
+  "location": "Zone 5",
+  "hour": 10,
+  "day": "Monday",
+  "zone": 5
+}
+```
 
-Inverse transformation during inference:
+**Get all zones:**
 
-predicted_demand = exp(prediction) - 1
-
----
-
-
-
-
-
-
-
+```bash
+curl https://ridepulsev2.onrender.com/locations
+```
