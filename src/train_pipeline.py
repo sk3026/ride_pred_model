@@ -201,25 +201,46 @@ def train_model(data_path):
             f" -> Demand: {round(float(pred), 2)}"
         )
 
-    # ---------------- CREATE MODELS FOLDER ----------------
-    os.makedirs("models", exist_ok=True)
+    # ---------------- BASE PATH ----------------
+    BASE_DIR = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
 
-    # ---------------- SAVE ----------------
-    print("\nSaving models...")
+    # ---------------- MODELS DIRECTORY ----------------
+    models_dir = os.path.join(
+        BASE_DIR,
+        "models"
+    )
 
+    os.makedirs(models_dir, exist_ok=True)
+
+    print("\nSaving models to:", models_dir)
+
+    # ---------------- SAVE MODEL ----------------
     joblib.dump(
         model,
-        "models/demand_model.pkl"
+        os.path.join(
+            models_dir,
+            "demand_model.pkl"
+        )
     )
 
+    # ---------------- SAVE COLUMNS ----------------
     joblib.dump(
         X.columns,
-        "models/model_columns.pkl"
+        os.path.join(
+            models_dir,
+            "model_columns.pkl"
+        )
     )
 
+    # ---------------- SAVE KMEANS ----------------
     joblib.dump(
         kmeans,
-        "models/kmeans.pkl"
+        os.path.join(
+            models_dir,
+            "kmeans.pkl"
+        )
     )
 
     print("Models saved successfully")
