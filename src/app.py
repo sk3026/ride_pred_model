@@ -1,18 +1,16 @@
-import sys
 import os
-
-# Ensure src/ is on the path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, request, jsonify
 import pandas as pd
 
-from model_pipeline import predict_demand
+from src.model_pipeline import predict_demand
 
 app = Flask(__name__)
 
 # ---------------- LOAD ZONE DATA ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
 zone_path = os.path.join(
     BASE_DIR,
@@ -23,7 +21,7 @@ zone_path = os.path.join(
 
 zone_df = None
 
-# Day mappings
+# ---------------- DAY MAPPINGS ----------------
 DAY_INT_TO_NAME = {
     0: "Monday",
     1: "Tuesday",
@@ -41,12 +39,18 @@ DAY_NAME_TO_INT = {
 
 # ---------------- LOAD ZONES ----------------
 def load_zones():
+
     try:
+
         print("Loading zones from:", zone_path)
 
         df = pd.read_csv(zone_path)
 
-        df.columns = df.columns.str.strip().str.lower()
+        df.columns = (
+            df.columns
+            .str.strip()
+            .str.lower()
+        )
 
         print("Zones loaded:", len(df))
 
@@ -55,7 +59,8 @@ def load_zones():
     except Exception as e:
 
         print("CSV load failed:", e)
-        print("Using fallback sample data")
+
+        print(" Using fallback sample data")
 
         return pd.DataFrame({
             "zone": [1, 2, 3],
@@ -65,6 +70,7 @@ def load_zones():
 
 
 def get_zone_df():
+
     global zone_df
 
     if zone_df is None:
@@ -89,7 +95,8 @@ def get_demand_level(value: float) -> str:
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
-    return "RidePulse API Running 🚀"
+
+    return "RidePulse API Running "
 
 
 # ---------------- LOCATIONS ----------------
@@ -103,9 +110,13 @@ def get_locations():
     for _, row in df.iterrows():
 
         data.append({
+
             "location_id": int(row["zone"]),
+
             "location_name": f"Zone {int(row['zone'])}",
+
             "latitude": float(row["lat"]),
+
             "longitude": float(row["lon"]),
         })
 
@@ -120,12 +131,12 @@ def predict():
 
         data = request.get_json(force=True)
 
-        # Inputs
+        # ---------------- INPUTS ----------------
         hour = int(data.get("hour", 0))
 
         zone_id = int(data.get("location_id", 1))
 
-        # Accept day as integer OR string
+        # ---------------- DAY ----------------
         raw_day = data.get("day", 0)
 
         if isinstance(raw_day, str):
@@ -145,7 +156,7 @@ def predict():
                 "Monday"
             )
 
-        # Lookup zone coordinates
+        # ---------------- ZONE LOOKUP ----------------
         df = get_zone_df()
 
         loc = df[df["zone"] == zone_id]
@@ -155,6 +166,7 @@ def predict():
             row = loc.iloc[0]
 
             lat = float(row["lat"])
+
             lon = float(row["lon"])
 
             location_name = f"Zone {zone_id}"
@@ -162,6 +174,7 @@ def predict():
         else:
 
             lat = 0.0
+
             lon = 0.0
 
             location_name = f"Zone {zone_id}"
@@ -173,10 +186,10 @@ def predict():
             day_name
         )
 
-        # Demand level
+        # ---------------- DEMAND LEVEL ----------------
         level = get_demand_level(prediction)
 
-        # Response
+        # ---------------- RESPONSE ----------------
         return jsonify({
 
             "predicted_demand": round(prediction, 2),
