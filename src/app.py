@@ -229,8 +229,10 @@ def debug():
 @app.route("/debug2")
 def debug2():
     import joblib, numpy as np
-    model   = joblib.load(os.path.join(BASE_DIR, "models", "demand_model.pkl"))
-    columns = joblib.load(os.path.join(BASE_DIR, "models", "model_columns.pkl"))
+    model_path = os.path.join(BASE_DIR, "models", "demand_model.pkl")
+    columns_path = os.path.join(BASE_DIR, "models", "model_columns.pkl")
+    model   = joblib.load(model_path)
+    columns = joblib.load(columns_path)
     inp = pd.DataFrame([{col: 0 for col in columns}])
     inp['hour'] = 13
     inp['is_weekend'] = 0
@@ -241,8 +243,8 @@ def debug2():
     return jsonify({
         "raw_pred": float(raw),
         "expm1": float(np.expm1(raw)),
-        "total_cols": len(columns),
-        "has_zone_6": "zone_6" in list(columns),
+        "model_file_size_bytes": os.path.getsize(model_path),
+        "model_path": model_path,
     })
 
 # ---------------- RUN ----------------
