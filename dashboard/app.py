@@ -169,7 +169,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 #  URL CONFIG  –  remote tried first, local fallback
 # ─────────────────────────────────────────────
-REMOTE_URL = "https://ride-pred-model.onrender.com"
+REMOTE_URL = "https://ridepulsev2.onrender.com"
 LOCAL_URL  = "http://127.0.0.1:5000"
 
 
