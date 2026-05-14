@@ -117,7 +117,7 @@ def train_model(data_path):
     print("Training XGBoost model...")
 
     model = XGBRegressor(
-        n_estimators=300,
+        n_estimators=301,
         learning_rate=0.05,
         max_depth=6,
         subsample=0.8,
