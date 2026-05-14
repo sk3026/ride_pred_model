@@ -5,8 +5,7 @@ __pycache__/
 # Python cache
 *.pyc
 
-# Model files (optional)
-*.pkl
+
 
 # Notebook checkpoints
 .ipynb_checkpoints/
