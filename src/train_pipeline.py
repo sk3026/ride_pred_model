@@ -53,7 +53,7 @@ def train_model(data_path):
     print(f"Remaining rows: {after}")
 
     # ---------------- CLUSTERING ----------------
-    print(" Creating zones...")
+    print("Creating zones...")
 
     kmeans = KMeans(
         n_clusters=20,
@@ -95,7 +95,7 @@ def train_model(data_path):
 
     # ---------------- TARGET TRANSFORMATION ----------------
     model_data['demand'] = np.log1p(
-        model_data['demand']
+        model_data['demand'].clip(lower=0)
     )
 
     # ---------------- SPLIT ----------------
@@ -121,7 +121,8 @@ def train_model(data_path):
         learning_rate=0.05,
         max_depth=6,
         subsample=0.8,
-        colsample_bytree=0.8
+        colsample_bytree=0.8,
+        random_state=42
     )
 
     model.fit(X_train, y_train)
@@ -150,11 +151,61 @@ def train_model(data_path):
     print("MAE :", round(mae, 2))
     print("R²  :", round(r2, 4))
 
+    # ---------------- SAMPLE TEST PREDICTIONS ----------------
+    print("\nSample Predictions")
+    print("----------------------")
+
+    sample_tests = [
+        (1, 15, "Tuesday"),
+        (5, 10, "Monday"),
+        (10, 10, "Monday"),
+        (15, 10, "Monday")
+    ]
+
+    for zone, hour, day in sample_tests:
+
+        input_df = pd.DataFrame(
+            0,
+            index=[0],
+            columns=X.columns
+        )
+
+        input_df.loc[0, 'hour'] = hour
+
+        input_df.loc[0, 'is_weekend'] = int(
+            day in ['Saturday', 'Sunday']
+        )
+
+        input_df.loc[0, 'is_peak'] = int(
+            hour in [8, 9, 17, 18, 19]
+        )
+
+        day_col = f"day_{day}"
+
+        if day_col in input_df.columns:
+            input_df.loc[0, day_col] = 1
+
+        zone_col = f"zone_{zone}"
+
+        if zone_col in input_df.columns:
+            input_df.loc[0, zone_col] = 1
+
+        pred_log = model.predict(input_df)[0]
+
+        pred = np.expm1(pred_log)
+
+        pred = max(0, pred)
+
+        print(
+            f"Zone {zone} | Hour {hour} | {day}"
+            f" -> Demand: {round(float(pred), 2)}"
+        )
+
     # ---------------- CREATE MODELS FOLDER ----------------
     os.makedirs("models", exist_ok=True)
 
     # ---------------- SAVE ----------------
-    print("\n💾 Saving models...")
+    print("\nSaving models...")
 
     joblib.dump(
         model,
