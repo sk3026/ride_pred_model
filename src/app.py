@@ -228,20 +228,21 @@ def debug():
 
 @app.route("/debug2")
 def debug2():
-    from model_pipeline import model, columns
+    import joblib, numpy as np
+    model   = joblib.load(os.path.join(BASE_DIR, "models", "demand_model.pkl"))
+    columns = joblib.load(os.path.join(BASE_DIR, "models", "model_columns.pkl"))
     inp = pd.DataFrame([{col: 0 for col in columns}])
     inp['hour'] = 13
     inp['is_weekend'] = 0
     inp['is_peak'] = 0
     inp['day_Monday'] = 1
     inp['zone_6'] = 1
-    import numpy as np
     raw = model.predict(inp)[0]
     return jsonify({
         "raw_pred": float(raw),
         "expm1": float(np.expm1(raw)),
-        "zone_6_value": float(inp['zone_6'].iloc[0]),
-        "day_monday_value": float(inp['day_Monday'].iloc[0])
+        "total_cols": len(columns),
+        "has_zone_6": "zone_6" in list(columns),
     })
 
 # ---------------- RUN ----------------
