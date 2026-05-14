@@ -214,6 +214,18 @@ def predict():
         return jsonify({
             "error": str(e)
         }), 500
+    
+@app.route("/debug")
+def debug():
+    import joblib, os
+    cols = joblib.load(os.path.join(BASE_DIR, "models", "model_columns.pkl"))
+    return jsonify({
+        "total_cols": len(cols),
+        "has_zone_6": "zone_6" in list(cols),
+        "has_day_monday": "day_Monday" in list(cols),
+        "zone_cols": [c for c in cols if "zone" in c]
+    })
+
 
 
 # ---------------- RUN ----------------
@@ -226,3 +238,4 @@ if __name__ == "__main__":
         port=port,
         debug=True
     )
+
