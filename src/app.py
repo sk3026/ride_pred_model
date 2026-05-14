@@ -82,10 +82,10 @@ def get_zone_df():
 # ---------------- DEMAND LEVEL ----------------
 def get_demand_level(value: float) -> str:
 
-    if value < 10:
+    if value < 1.0:
         return "Low"
 
-    elif value < 25:
+    elif value < 2.5:
         return "Moderate"
 
     else:
