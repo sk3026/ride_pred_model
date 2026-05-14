@@ -3,7 +3,6 @@ import numpy as np
 import joblib
 import os
 
-# Fix: use absolute path relative to this file's actual location
 _THIS_FILE = os.path.abspath(__file__)
 _SRC_DIR   = os.path.dirname(_THIS_FILE)
 BASE_DIR   = os.path.dirname(_SRC_DIR)
@@ -19,7 +18,6 @@ def predict_demand(zone, hour=10, day="Monday"):
     columns = joblib.load(os.path.join(MODEL_DIR, "model_columns.pkl"))
 
     input_df = pd.DataFrame(0, index=[0], columns=columns)
-
     input_df.loc[0, 'hour']       = hour
     input_df.loc[0, 'is_weekend'] = int(day in WEEKEND_DAYS)
     input_df.loc[0, 'is_peak']    = int(hour in PEAK_HOURS)
