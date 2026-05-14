@@ -138,17 +138,6 @@ def predict_demand(
         pred_log
     )
 
-    # ---------------- SAFETY FIX ----------------
-    pred_log = max(
-        0,
-        pred_log
-    )
-
-    print(
-        "Clamped pred_log:",
-        pred_log
-    )
-
     # ---------------- INVERSE TRANSFORM ----------------
     prediction = float(
         np.expm1(pred_log)
