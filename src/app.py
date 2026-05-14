@@ -226,7 +226,23 @@ def debug():
         "zone_cols": [c for c in cols if "zone" in c]
     })
 
-
+@app.route("/debug2")
+def debug2():
+    from model_pipeline import model, columns
+    inp = pd.DataFrame([{col: 0 for col in columns}])
+    inp['hour'] = 13
+    inp['is_weekend'] = 0
+    inp['is_peak'] = 0
+    inp['day_Monday'] = 1
+    inp['zone_6'] = 1
+    import numpy as np
+    raw = model.predict(inp)[0]
+    return jsonify({
+        "raw_pred": float(raw),
+        "expm1": float(np.expm1(raw)),
+        "zone_6_value": float(inp['zone_6'].iloc[0]),
+        "day_monday_value": float(inp['day_Monday'].iloc[0])
+    })
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
