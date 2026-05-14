@@ -90,7 +90,7 @@ def train_model(data_path):
     model_data = pd.get_dummies(
         model_data,
         columns=['day', 'zone'],
-        drop_first=True
+        drop_first=False
     )
 
     # ---------------- TARGET TRANSFORMATION ----------------
